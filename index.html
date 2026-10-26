@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Z-Score to Value</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+/* Layout: question card beside a picture-and-work column on desktop; stacks with the question first on phones. */
+:root{
+  --bg:#E8EEF3; --surface:#FFFFFF; --ink:#13222D; --muted:#566772; --line:#C8D4DC; --head:#EEF3F7;
+  --accent:#0B6A8A; --accent-ink:#FFFFFF; --accent-soft:#D5EAF2;
+  --hl-soft:#FFF0B3; --hl:#FFD23F; --hl-ink:#13222D;
+  --good:#17753F; --good-bg:#DFF2E6; --bad:#B3321F; --bad-bg:#FBE3DE; --info:#0B6A8A; --info-bg:#E3EFF5;
+  --display:'Newsreader',Georgia,serif;
+  --body:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1920; --surface:#15252F; --ink:#E4EDF2; --muted:#93A7B4; --line:#2B404D; --head:#1B2F3B;
+    --accent:#5BC0E0; --accent-ink:#07202B; --accent-soft:#1F4151;
+    --hl-soft:#4A4118; --hl:#86690F; --hl-ink:#FFF8DC;
+    --good:#5CD08A; --good-bg:#173B27; --bad:#FF8C7A; --bad-bg:#432019; --info:#5BC0E0; --info-bg:#1F3A48;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1920; --surface:#15252F; --ink:#E4EDF2; --muted:#93A7B4; --line:#2B404D; --head:#1B2F3B;
+  --accent:#5BC0E0; --accent-ink:#07202B; --accent-soft:#1F4151;
+  --hl-soft:#4A4118; --hl:#86690F; --hl-ink:#FFF8DC;
+  --good:#5CD08A; --good-bg:#173B27; --bad:#FF8C7A; --bad-bg:#432019; --info:#5BC0E0; --info-bg:#1F3A48;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--body); font-size:16px; line-height:1.5;
+  padding-block:28px 40px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap{max-width:1120px; margin:0 auto}
+h1{font-family:var(--display); font-weight:600; font-size:clamp(28px,4vw,38px); line-height:1.1; margin:0 0 6px; text-wrap:balance}
+.lede{margin:0 0 22px; color:var(--muted); max-width:62ch}
+.layout{display:grid; gap:20px; grid-template-columns:minmax(0,1fr); grid-template-areas:"quiz" "side"}
+@media (min-width:880px){
+  .layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:start}
+}
+.quiz{grid-area:quiz} .side{grid-area:side; display:grid; gap:20px; min-width:0}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:12px}
+.quiz{padding:20px; min-width:0}
+.panel{padding:16px 18px; min-width:0}
+h2{font-family:var(--display); font-weight:600; font-size:20px; margin:0 0 8px}
+
+.levels{display:inline-flex; background:var(--head); border:1px solid var(--line); border-radius:10px; padding:3px; gap:3px; margin-bottom:14px; flex-wrap:wrap}
+.lvl{border:0; background:transparent; color:var(--muted); font-weight:600; font-size:14px; padding:7px 14px; border-radius:7px}
+.lvl[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink)}
+.lvl[aria-pressed="false"]:hover{color:var(--ink)}
+.qmeta{display:flex; justify-content:space-between; gap:12px; align-items:baseline; color:var(--muted)}
+.qmeta .label{text-transform:uppercase; letter-spacing:.08em; font-weight:600; font-size:12px}
+.story{font-size:18px; margin:8px 0 12px; text-wrap:pretty}
+.story b{font-family:var(--mono); font-weight:700; font-size:.95em; white-space:nowrap}
+.zbig{font-family:var(--display); font-weight:600; font-size:clamp(34px,6vw,46px); line-height:1.1; margin:0 0 6px; font-variant-numeric:tabular-nums}
+.prompt{margin:0 0 14px; color:var(--muted)}
+.answer{display:flex; gap:10px; flex-wrap:wrap}
+.answer input{
+  flex:1 1 130px; min-width:0; font:500 22px var(--mono); padding:9px 12px; border-radius:8px;
+  border:1.5px solid var(--line); background:var(--surface); color:var(--ink);
+}
+.answer input:read-only{background:var(--head)}
+button{font:inherit; cursor:pointer}
+.btn{font-weight:600; padding:10px 18px; border-radius:8px; border:1.5px solid var(--accent); background:var(--accent); color:var(--accent-ink)}
+.btn:hover{filter:brightness(1.08)}
+.ghost{font-weight:500; font-size:14px; padding:7px 12px; border-radius:8px; border:1.5px solid var(--line); background:transparent; color:var(--ink)}
+.ghost:hover:not(:disabled){border-color:var(--accent); color:var(--accent)}
+.ghost:disabled{opacity:.45; cursor:default}
+:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+.tools{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+.fb{margin-top:14px; padding:10px 12px; border-radius:8px; min-height:3.6em; font-size:15px; background:var(--head); color:var(--muted)}
+.fb.good{background:var(--good-bg); color:var(--good)}
+.fb.bad{background:var(--bad-bg); color:var(--bad)}
+.fb.info{background:var(--info-bg); color:var(--info)}
+.num{font-family:var(--mono)}
+.score{display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-top:16px; padding-top:14px; border-top:1px solid var(--line); font-size:14px; color:var(--muted)}
+.score b{color:var(--ink); font-variant-numeric:tabular-nums}
+.linkish{background:none; border:0; color:var(--muted); text-decoration:underline; padding:2px; font-size:13px}
+
+.curve{width:100%; height:auto; display:block}
+.curve .axis{stroke:var(--muted); stroke-width:1.2}
+.curve .tick{stroke:var(--muted); stroke-width:1}
+.curve .tlabel{fill:var(--muted); font:11px var(--mono); text-anchor:middle}
+.curve .rowname{fill:var(--accent); font:700 11px var(--mono); text-anchor:start}
+.curve .vlabel{fill:var(--ink); font:600 11px var(--mono); text-anchor:middle}
+.curve .line{fill:none; stroke:var(--ink); stroke-width:1.8}
+.curve .fillc{fill:var(--accent); fill-opacity:.18}
+.curve .mean{stroke:var(--muted); stroke-width:1.2}
+.curve .zline{stroke:var(--accent); stroke-width:1.8; stroke-dasharray:4 3}
+.curve .zdot{fill:var(--accent)}
+.curve .zlabel{fill:var(--ink); font:600 12px var(--mono); text-anchor:middle}
+.caption{font-size:13px; color:var(--muted); margin:6px 0 0}
+.work{display:grid; gap:8px; margin:0; padding:0; list-style:none}
+.work li{display:grid; grid-template-columns:92px minmax(0,1fr); gap:10px; align-items:baseline; padding:8px 10px; border-radius:8px; background:var(--head)}
+.work .k{font-size:12px; text-transform:uppercase; letter-spacing:.08em; font-weight:600; color:var(--muted)}
+.work .v{font-family:var(--mono); font-size:16px; overflow-wrap:anywhere}
+.work li.off .v{color:var(--muted)}
+.work li.on{background:var(--hl-soft)}
+.work li.on .v{color:var(--ink); font-weight:600}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto !important; transition:none !important}}
+</style>
+</head>
+<body>
+
+<main class="wrap">
+  <header>
+    <h1>Z-Score to Value</h1>
+    <p class="lede">You get the mean, the standard deviation and a z-score. Find the value that has that z-score.</p>
+  </header>
+
+  <div class="layout">
+    <section class="card quiz" aria-labelledby="qlabel">
+      <div class="levels" role="group" aria-label="Kind of z-score">
+        <button class="lvl" type="button" data-level="whole" aria-pressed="false">Whole z</button>
+        <button class="lvl" type="button" data-level="half" aria-pressed="true">Half z</button>
+        <button class="lvl" type="button" data-level="dec" aria-pressed="false">Decimal z</button>
+      </div>
+      <div class="qmeta"><span class="label" id="qlabel">Question <span id="qnum">1</span></span><span id="unitnote"></span></div>
+      <p class="story" id="story"></p>
+      <div class="zbig" id="zbig">z = 0</div>
+      <p class="prompt" id="prompt"></p>
+      <form class="answer" id="ansform" autocomplete="off">
+        <input id="ans" type="text" inputmode="decimal" placeholder="your answer" aria-label="Value that has this z-score">
+        <button class="btn" id="primary" type="submit">Check answer</button>
+      </form>
+      <div class="tools">
+        <button class="ghost" id="hintBtn" type="button">Hint</button>
+        <button class="ghost" id="revealBtn" type="button">Show answer</button>
+      </div>
+      <div class="fb" id="fb" role="status" aria-live="polite">Start from the mean, then move z standard deviations.</div>
+      <div class="score">
+        <span id="score">No questions finished yet</span>
+        <button class="linkish" id="reset" type="button">Reset score</button>
+      </div>
+    </section>
+
+    <div class="side">
+      <section class="card panel" aria-label="Number line">
+        <h2>Number line</h2>
+        <svg class="curve" id="curve" viewBox="0 0 360 164" role="img" aria-label="Normal curve with z-scores along the bottom and the mean marked"></svg>
+        <p class="caption">Top row: z-scores. Bottom row: values. Only the mean is filled in until you finish.</p>
+      </section>
+      <section class="card panel" aria-label="Worked solution">
+        <h2>Work</h2>
+        <ul class="work" id="work">
+          <li class="off" id="w1"><span class="k">Formula</span><span class="v"></span></li>
+          <li class="off" id="w2"><span class="k">Substitute</span><span class="v"></span></li>
+          <li class="off" id="w3"><span class="k">Result</span><span class="v"></span></li>
+        </ul>
+        <p class="caption">Each hint fills in a line.</p>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script>
+(function(){
+  var MINUS = '−';
+  var TOL = 0.0051;
+  var CTX = [
+    {intro:'Scores on a unit test', unit:'points', what:'score', mu:[60,90], sd:[4,5,6,8,10,12]},
+    {intro:'Heights of adult women', unit:'inches', what:'height', mu:[62,66], sd:[2,2.5,3]},
+    {intro:'Daily commute times', unit:'minutes', what:'commute time', mu:[20,45], sd:[3,4,5,6]},
+    {intro:'Fill weights of cereal boxes', unit:'ounces', what:'fill weight', mu:[12,18], sd:[0.2,0.3,0.4,0.5]},
+    {intro:'Battery life of a phone', unit:'hours', what:'battery life', mu:[10,14], sd:[1,1.5,2]},
+    {intro:'Resting heart rates', unit:'beats per minute', what:'heart rate', mu:[66,76], sd:[4,5,6,8]},
+    {intro:'Times to run a mile in gym class', unit:'minutes', what:'time', mu:[8,11], sd:[0.5,1,1.5]}
+  ];
+  function $(id){ return document.getElementById(id); }
+  function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+  function rnd(a,b){ return a + Math.floor(Math.random()*(b-a+1)); }
+  function r2(x){ return Math.round(x*100)/100; }
+  function num(x){ return String(parseFloat(r2(x).toFixed(2))); }
+  function sgn(x){ return (x < 0 ? MINUS : '') + num(Math.abs(x)); }
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  function pdf(z){ return Math.exp(-z*z/2)/Math.sqrt(2*Math.PI); }
+
+  var fb = $('fb'), input = $('ans'), primary = $('primary'), hintBtn = $('hintBtn'), revealBtn = $('revealBtn');
+  var level = 'half', q = null, status = 'open', attempts = 0, hintLevel = 0, shown = 0;
+  var n = 0, first = 0, streak = 0, qnum = 0;
+
+  /* ---------- number line ---------- */
+  function X(z){ return 20 + (z + 4) * 40; }
+  function Y(z){ return 112 - pdf(z) * 200; }
+  function drawLine(done){
+    var pts = [], i, t, s = '';
+    for (i = 0; i <= 80; i++){ t = -4 + i * 0.1; pts.push(X(t).toFixed(1) + ',' + Y(t).toFixed(1)); }
+    s += '<polygon class="fillc" points="' + X(-4) + ',112 ' + pts.join(' ') + ' ' + X(4) + ',112"/>';
+    s += '<polyline class="line" points="' + pts.join(' ') + '"/>';
+    s += '<line class="axis" x1="20" y1="112" x2="340" y2="112"/>';
+    s += '<line class="mean" x1="' + X(0) + '" y1="112" x2="' + X(0) + '" y2="' + Y(0).toFixed(1) + '"/>';
+    s += '<text class="rowname" x="2" y="131">z</text><text class="rowname" x="2" y="148">x</text>';
+    for (i = -3; i <= 3; i++){
+      s += '<line class="tick" x1="' + X(i) + '" y1="112" x2="' + X(i) + '" y2="117"/>';
+      s += '<text class="tlabel" x="' + X(i) + '" y="131">' + (i < 0 ? MINUS : '') + Math.abs(i) + '</text>';
+      if (i === 0 || done) s += '<text class="vlabel" x="' + X(i) + '" y="148">' + num(q.mu + i * q.sd) + '</text>';
+    }
+    var z = q.z, xz = X(z).toFixed(1);
+    s += '<line class="zline" x1="' + xz + '" y1="112" x2="' + xz + '" y2="26"/>';
+    s += '<circle class="zdot" cx="' + xz + '" cy="112" r="4"/>';
+    s += '<text class="zlabel" x="' + xz + '" y="16">' + (done ? 'x = ' + num(q.x) : 'x = ?') + '</text>';
+    $('curve').innerHTML = s;
+  }
+
+  /* ---------- work panel ---------- */
+  function setRow(id, html, on){
+    var li = $(id);
+    li.className = on ? 'on' : 'off';
+    li.querySelector('.v').innerHTML = on ? html : '—';
+  }
+  function showWork(upTo){
+    shown = Math.max(shown, upTo);
+    var zs = q.z < 0 ? '(' + MINUS + num(-q.z) + ')' : '(' + num(q.z) + ')';
+    setRow('w1', 'x = μ + z · σ', shown >= 1);
+    setRow('w2', 'x = ' + num(q.mu) + ' + ' + zs + '(' + num(q.sd) + ')', shown >= 2);
+    setRow('w3', 'x = ' + num(q.x) + ' ' + esc(q.c.unit), shown >= 3);
+  }
+
+  /* ---------- questions ---------- */
+  function showFb(kind, title, text){
+    fb.className = 'fb ' + kind;
+    fb.innerHTML = '<strong>' + title + '</strong> ' + text;
+  }
+  function updateScore(){
+    $('score').innerHTML = n === 0 ? 'No questions finished yet'
+      : 'First try: <b>' + first + ' of ' + n + '</b> &middot; Streak: <b>' + streak + '</b>';
+  }
+  function newQuestion(){
+    var c, mu, sd, zt;
+    do {
+      c = pick(CTX); mu = rnd(c.mu[0], c.mu[1]); sd = pick(c.sd);
+      if (level === 'whole') zt = 10 * pick([-3,-2,-1,1,2,3]);
+      else if (level === 'half') zt = 5 * pick([-6,-5,-4,-3,-2,-1,1,2,3,4,5,6]);
+      else { zt = rnd(1, 30) * (Math.random() < 0.5 ? -1 : 1); }
+    } while (q && q.mu === mu && q.sd === sd && q.zt === zt);
+    var z = zt / 10;
+    q = {c: c, mu: mu, sd: sd, zt: zt, z: z, x: r2(mu + z * sd), clean: true};
+    qnum++;
+    status = 'open'; attempts = 0; hintLevel = 0; shown = 0;
+    $('qnum').textContent = qnum;
+    $('unitnote').textContent = 'Answer in ' + c.unit;
+    $('story').innerHTML = esc(c.intro) + ' have a mean of <b>' + num(mu) + ' ' + esc(c.unit) + '</b> and a standard deviation of <b>' + num(sd) + ' ' + esc(c.unit) + '</b>.';
+    $('zbig').textContent = 'z = ' + sgn(z);
+    $('prompt').textContent = 'Find the ' + c.what + ' that has this z-score.';
+    input.value = ''; input.readOnly = false;
+    primary.textContent = 'Check answer';
+    hintBtn.disabled = false; revealBtn.disabled = false;
+    showFb('', 'Your turn.', 'Start from the mean, then move z standard deviations.');
+    drawLine(false);
+    showWork(0);
+  }
+  function parse(s){
+    s = s.replace(/[\s,]/g, '').replace(/−/g, '-');
+    if (!/^-?(\d+\.?\d*|\.\d+)$/.test(s)) return NaN;
+    return parseFloat(s);
+  }
+  function finish(){
+    status = 'done';
+    n++;
+    if (q.clean){ first++; streak++; } else streak = 0;
+    updateScore();
+    input.readOnly = true;
+    hintBtn.disabled = true; revealBtn.disabled = true;
+    primary.textContent = 'Next question';
+    drawLine(true);
+    showWork(3);
+    primary.focus();
+  }
+  function dirText(){
+    var d = Math.abs(q.z);
+    return num(d) + ' standard deviation' + (d === 1 ? '' : 's') + (q.z > 0 ? ' above' : ' below') + ' the mean';
+  }
+  function check(){
+    var v = parse(input.value);
+    if (isNaN(v)){
+      showFb('info', 'Enter a number.', 'Type the value, like <span class="num">' + num(q.mu) + '</span>.');
+      return;
+    }
+    attempts++;
+    function near(x){ return Math.abs(v - x) < TOL; }
+    if (near(q.x)){
+      showFb('good', 'Correct.', 'x = ' + num(q.mu) + ' + (' + sgn(q.z) + ')(' + num(q.sd) + ') = <span class="num">' + num(q.x) + '</span> ' + esc(q.c.unit) + ', which is ' + dirText() + '.');
+      finish();
+      return;
+    }
+    q.clean = false;
+    var flip = r2(q.mu - q.z * q.sd), prod = r2(q.z * q.sd), msg;
+    if (near(flip)){
+      msg = 'z is ' + (q.z > 0 ? 'positive' : 'negative') + ', so the value is ' + (q.z > 0 ? 'above' : 'below') + ' the mean. ' + (q.z > 0 ? 'Add' : 'Subtract') + ' z · σ ' + (q.z > 0 ? 'to' : 'from') + ' the mean.';
+    } else if (near(prod) || near(Math.abs(prod))){
+      msg = 'That is z · σ, how far the value is from the mean. Now combine it with the mean.';
+    } else if (near(r2(q.mu + q.z))){
+      msg = 'You added z to the mean. z counts standard deviations, so multiply z by σ first.';
+    } else if ((q.z > 0 && v < q.mu) || (q.z < 0 && v > q.mu)){
+      msg = 'z is ' + (q.z > 0 ? 'positive' : 'negative') + ', so the answer should be ' + (q.z > 0 ? 'above' : 'below') + ' the mean of ' + num(q.mu) + '.';
+    } else {
+      msg = 'Check the multiplication z · σ, then ' + (q.z > 0 ? 'add' : 'subtract') + ' it ' + (q.z > 0 ? 'to' : 'from') + ' the mean.';
+    }
+    if (attempts >= 2 && hintLevel < 2) msg += ' Try the hint.';
+    showFb('bad', 'Not yet.', msg);
+    input.select();
+  }
+  function hint(){
+    if (status === 'done') return;
+    hintLevel = Math.min(2, hintLevel + 1);
+    q.clean = false;
+    if (hintLevel === 1){
+      showWork(1);
+      showFb('info', 'Hint 1.', 'The value is the mean plus z standard deviations: <span class="num">x = μ + z · σ</span>. A negative z moves below the mean.');
+    } else {
+      showWork(2);
+      showFb('info', 'Hint 2.', 'Put in the numbers, multiply z by ' + num(q.sd) + ' first, then add to ' + num(q.mu) + '.');
+      hintBtn.disabled = true;
+    }
+  }
+
+  $('ansform').addEventListener('submit', function(e){
+    e.preventDefault();
+    if (status === 'done'){ newQuestion(); input.focus(); } else check();
+  });
+  hintBtn.addEventListener('click', hint);
+  revealBtn.addEventListener('click', function(){
+    if (status === 'done') return;
+    q.clean = false;
+    showFb('info', 'Answer.', 'x = ' + num(q.mu) + ' + (' + sgn(q.z) + ')(' + num(q.sd) + ') = <span class="num">' + num(q.x) + '</span> ' + esc(q.c.unit) + '.');
+    finish();
+  });
+  $('reset').addEventListener('click', function(){ n = 0; first = 0; streak = 0; updateScore(); });
+  document.querySelectorAll('.lvl').forEach(function(b){
+    b.addEventListener('click', function(){
+      if (b.dataset.level === level) return;
+      level = b.dataset.level;
+      document.querySelectorAll('.lvl').forEach(function(o){ o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
+      newQuestion();
+    });
+  });
+
+  newQuestion();
+  updateScore();
+})();
+</script>
+
+</body>
+</html>
