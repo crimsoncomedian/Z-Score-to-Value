@@ -126,7 +126,7 @@ mjx-container svg{vertical-align:middle}
 <main class="wrap">
   <header>
     <h1>Z-Score to Value</h1>
-    <p class="lede">Given the mean, the standard deviation and a z-score, find the value.</p>
+    <p class="lede">Use the z-score formula to find the value that has a given z-score.</p>
   </header>
 
   <div class="layout">
@@ -162,10 +162,10 @@ mjx-container svg{vertical-align:middle}
     <section class="card workcard" aria-label="Worked solution">
       <div class="workhead"><h2>Work</h2><span class="caption">Each hint fills in a step.</span></div>
       <ul class="work" id="work">
-        <li class="off" id="w1"><span class="k">Formula</span><span class="v"></span></li>
+        <li class="off" id="w1"><span class="k">Z-score formula</span><span class="v"></span></li>
         <li class="off" id="w2"><span class="k">Substitute</span><span class="v"></span></li>
-        <li class="off" id="w3"><span class="k">Multiply</span><span class="v"></span></li>
-        <li class="off" id="w4"><span class="k">Result</span><span class="v"></span></li>
+        <li class="off" id="w3"><span class="k">Multiply both sides by &sigma;</span><span class="v"></span></li>
+        <li class="off" id="w4"><span class="k">Add &mu; to both sides</span><span class="v"></span></li>
       </ul>
     </section>
   </div>
@@ -234,10 +234,10 @@ mjx-container svg{vertical-align:middle}
   function showWork(upTo){
     shown = Math.max(shown, upTo);
     var p = r2(q.z * q.sd);
-    setRow('w1', 'x = \\mu + z\\,\\sigma', shown >= 1);
-    setRow('w2', 'x = ' + num(q.mu) + ' + (' + num(q.z) + ')(' + num(q.sd) + ')', shown >= 2);
-    setRow('w3', 'x = ' + num(q.mu) + ' + ' + (p < 0 ? '(' + num(p) + ')' : num(p)), shown >= 3);
-    setRow('w4', 'x = ' + num(q.x) + '\\ \\text{' + q.c.unit + '}', shown >= 3);
+    setRow('w1', 'z = \\dfrac{x - \\mu}{\\sigma}', shown >= 1);
+    setRow('w2', num(q.z) + ' = \\dfrac{x - ' + num(q.mu) + '}{' + num(q.sd) + '}', shown >= 2);
+    setRow('w3', num(p) + ' = x - ' + num(q.mu), shown >= 3);
+    setRow('w4', 'x = ' + num(p) + ' + ' + num(q.mu) + ' = ' + num(q.x) + '\\ \\text{' + q.c.unit + '}', shown >= 3);
   }
 
   /* ---------- questions ---------- */
@@ -251,7 +251,7 @@ mjx-container svg{vertical-align:middle}
       : 'First try <b>' + first + ' of ' + n + '</b> &middot; Streak <b>' + streak + '</b>';
   }
   function solved(){
-    return T('x = ' + num(q.mu) + ' + (' + num(q.z) + ')(' + num(q.sd) + ') = ' + num(q.x) + '\\ \\text{' + q.c.unit + '}');
+    return T('x = ' + num(r2(q.z * q.sd)) + ' + ' + num(q.mu) + ' = ' + num(q.x) + '\\ \\text{' + q.c.unit + '}');
   }
   function newQuestion(){
     var c, mu, sd, zt;
@@ -273,7 +273,7 @@ mjx-container svg{vertical-align:middle}
     input.value = ''; input.readOnly = false;
     primary.textContent = 'Check answer';
     hintBtn.disabled = false; revealBtn.disabled = false;
-    showFb('', 'Your turn.', 'Start from the mean, then move z standard deviations.');
+    showFb('', 'Your turn.', 'Put the numbers into the z-score formula and solve for x.');
     drawLine(false);
     showWork(0);
   }
@@ -312,17 +312,18 @@ mjx-container svg{vertical-align:middle}
       return;
     }
     q.clean = false;
-    var flip = r2(q.mu - q.z * q.sd), prod = r2(q.z * q.sd), msg, zs = T('z\\sigma'), pos = q.z > 0;
+    var flip = r2(q.mu - q.z * q.sd), prod = r2(q.z * q.sd), msg, pos = q.z > 0;
+    var xm = T('x - \\mu'), mu = T('\\mu'), sg = T('\\sigma');
     if (near(flip)){
-      msg = 'z is ' + (pos ? 'positive' : 'negative') + ', so the value is ' + (pos ? 'above' : 'below') + ' the mean. ' + (pos ? 'Add ' : 'Subtract ') + zs + (pos ? ' to' : ' from') + ' the mean.';
+      msg = 'The sign slipped. z is ' + (pos ? 'positive' : 'negative') + ', so x is ' + (pos ? 'above' : 'below') + ' the mean. After multiplying both sides by ' + sg + ' you have ' + T(num(prod) + ' = x - ' + num(q.mu)) + '. Add ' + mu + ' to both sides.';
     } else if (near(prod) || near(Math.abs(prod))){
-      msg = 'That is ' + zs + ', how far the value is from the mean. Now combine it with the mean.';
+      msg = 'That is what multiplying both sides by ' + sg + ' gives you for ' + xm + '. Now add ' + mu + ' to both sides to get x.';
     } else if (near(r2(q.mu + q.z))){
-      msg = 'You added z to the mean. z counts standard deviations, so multiply z by ' + T('\\sigma') + ' first.';
+      msg = 'You added z to the mean. First multiply both sides by ' + sg + ', which undoes the division.';
     } else if ((pos && v < q.mu) || (!pos && v > q.mu)){
-      msg = 'z is ' + (pos ? 'positive' : 'negative') + ', so the answer should be ' + (pos ? 'above' : 'below') + ' the mean of ' + num(q.mu) + '.';
+      msg = 'z is ' + (pos ? 'positive' : 'negative') + ', so x should be ' + (pos ? 'above' : 'below') + ' the mean of ' + num(q.mu) + '.';
     } else {
-      msg = 'Check the multiplication ' + zs + ', then ' + (pos ? 'add it to' : 'subtract it from') + ' the mean.';
+      msg = 'Substitute into the z-score formula, multiply both sides by ' + sg + ', then add ' + mu + ' to both sides.';
     }
     if (attempts >= 2 && hintLevel < 2) msg += ' Try the hint.';
     showFb('bad', 'Not yet.', msg);
@@ -334,10 +335,10 @@ mjx-container svg{vertical-align:middle}
     q.clean = false;
     if (hintLevel === 1){
       showWork(1);
-      showFb('info', 'Hint 1.', 'The value is the mean plus z standard deviations: ' + T('x = \\mu + z\\sigma') + '. A negative z moves below the mean.');
+      showFb('info', 'Hint 1.', 'Start with the z-score formula, ' + T('z = \\dfrac{x - \\mu}{\\sigma}') + ', and solve it for x.');
     } else {
       showWork(2);
-      showFb('info', 'Hint 2.', 'Put in the numbers. Multiply z by ' + num(q.sd) + ' first, then add the result to ' + num(q.mu) + '.');
+      showFb('info', 'Hint 2.', 'Substitute z, ' + T('\\mu') + ' and ' + T('\\sigma') + '. Then multiply both sides by ' + num(q.sd) + ' and add ' + num(q.mu) + ' to both sides.');
       hintBtn.disabled = true;
     }
   }
